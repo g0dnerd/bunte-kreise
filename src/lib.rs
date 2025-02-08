@@ -1,53 +1,19 @@
 use clap::ValueEnum;
-use std::{fs::File, io::BufReader};
-
-use plotters::style::RGBAColor;
+use core::f64;
+use matrix::make_matrix;
+use serde_derive::{Deserialize, Serialize};
+use std::{fs::File, io::BufReader, str::FromStr};
+use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 pub mod matrix;
-pub mod visualize;
 
 pub const PARTY_AMOUNT: usize = 28;
 pub const QUESTION_AMOUNT: usize = 38;
-const COORD_TYPES: [&str; 3] = ["tsne", "umap", "mds"];
-const BACKGROUND_COLOR: RGBAColor = RGBAColor(34, 34, 24, 1.0);
-const ACCENT_COLOR: RGBAColor = RGBAColor(132, 220, 198, 1.0);
-const TEXT_COLOR: RGBAColor = RGBAColor(255, 255, 255, 1.0);
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Algorithm {
     Cosine,
     Smc,
-}
-
-pub enum Party {
-    Spd,
-    CduCsU,
-    Gruene,
-    Fdp,
-    Afd,
-    DieLinke,
-    Ssw,
-    FreieWähler,
-    Tierschutzpartei,
-    Diebasis,
-    DiePartei,
-    DieGerechtigkeitsparteiTeamTodenhöfer,
-    Piraten,
-    Volt,
-    Ödp,
-    Verjüngungsforschung,
-    Pdh,
-    BündnisC,
-    Bp,
-    Mlpd,
-    MenschlicheWelt,
-    Pdf,
-    Sgp,
-    Büso,
-    BündnisDeutschland,
-    Bsw,
-    Mera25,
-    Werteunion,
 }
 
 pub const PARTIES: [[f64; 38]; 28] = [
@@ -227,7 +193,8 @@ fn idx_to_name(idx: &f64) -> &'static str {
     }
 }
 
-struct CoordinateSpace {
+#[derive(Serialize, Deserialize)]
+struct CoordSpace {
     coordinates: Vec<(f64, f64)>,
     min_x: f64,
     max_x: f64,
@@ -235,41 +202,58 @@ struct CoordinateSpace {
     max_y: f64,
 }
 
-fn coords_from_file(fpath: String) -> anyhow::Result<CoordinateSpace> {
-    let file = File::open(fpath)?;
+#[wasm_bindgen]
+pub fn get_coordinates(coord_space: &JsValue) -> Result<JsValue, JsValue> {
+    let coord_space: CoordSpace = serde_wasm_bindgen::from_value(coord_space.clone())?;
+    Ok(serde_wasm_bindgen::to_value(&coord_space.coordinates)?)
+}
+
+#[wasm_bindgen]
+pub fn generate_coordinates(alg: &str) -> Result<(), JsValue> {
+    let algorithm = match alg {
+        "cosine" => Algorithm::Cosine,
+        "smc" => Algorithm::Smc,
+        _ => return Err(JsValue::from_str("Invalid algorithm")),
+    };
+    make_matrix(algorithm).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn coords_from_file(fpath: &str) -> Result<JsValue, JsValue> {
+    let file = File::open(fpath).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let reader = BufReader::new(file);
     let mut coordinates = Vec::new();
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_reader(reader);
+
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
     for result in rdr.records() {
-        let record = result?;
-        let x: f64 = record[0].parse()?;
-        let y: f64 = record[1].parse()?;
+        let record = result.map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let x: f64 = record[0]
+            .parse()
+            .map_err(|e: <f64 as FromStr>::Err| JsValue::from_str(&e.to_string()))?;
+        let y: f64 = record[1]
+            .parse()
+            .map_err(|e: <f64 as FromStr>::Err| JsValue::from_str(&e.to_string()))?;
+        min_x = min_x.min(x);
+        max_x = max_x.max(x);
+        min_y = min_y.min(y);
+        max_y = max_y.max(y);
         coordinates.push((x, y));
     }
-    let min_x = coordinates
-        .iter()
-        .map(|(x, _)| x)
-        .fold(f64::INFINITY, |a, &b| a.min(b));
-    let max_x = coordinates
-        .iter()
-        .map(|(x, _)| x)
-        .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    let min_y = coordinates
-        .iter()
-        .map(|(_, y)| y)
-        .fold(f64::INFINITY, |a, &b| a.min(b));
-    let max_y = coordinates
-        .iter()
-        .map(|(_, y)| y)
-        .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
 
-    Ok(CoordinateSpace {
+    let coord_space = CoordSpace {
         coordinates,
         min_x,
         max_x,
         min_y,
         max_y,
-    })
+    };
+
+    Ok(serde_wasm_bindgen::to_value(&coord_space)?)
 }

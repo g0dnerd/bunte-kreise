@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>Visualisierung der BTW 2025</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+  <body>
+    <script src="./index.js"></script>
+    <label for="algorithm">Select Algorithm:</label>
+    <select id="algorithm" onchange="loadData()">
+      <option value="cosine">Cosine Similarity</option>
+      <option value="smc">Weighed SMC</option>
+    </select>
+    <svg id="chart"></svg>
+  </body>
+</html>

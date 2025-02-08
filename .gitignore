@@ -3,3 +3,6 @@
 *.csv
 Cargo.lock
 .venv/
+/pkg
+/**/node_modules
+package-lock.json
