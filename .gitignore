@@ -1,0 +1,5 @@
+/target
+*.svg
+*.csv
+Cargo.lock
+.venv/
