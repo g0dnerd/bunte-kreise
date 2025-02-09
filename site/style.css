@@ -1,3 +1,28 @@
-html {
-  margin: auto;
+body {
+  font-family: sans-serif;
+  margin: 0;
+}
+
+#container {
+  width: 100vw;
+  height: 100vh;
+}
+
+#controls {
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 10px;
+}
+
+#switch-3D {
+  margin-top: 10px;
+}
+
+.mdl-js-radio {
+  margin-left: 10px;
+}
+
+.button {
+  margin-top: 18px;
 }
